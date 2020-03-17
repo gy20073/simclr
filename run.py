@@ -37,6 +37,9 @@ import tensorflow_hub as hub
 
 FLAGS = flags.FLAGS
 
+flags.DEFINE_string(
+    'backbone', "mobilenet_v3_large_minimalistic",
+    'which backbone to use')
 
 flags.DEFINE_float(
     'learning_rate', 0.3,
@@ -226,7 +229,6 @@ flags.DEFINE_boolean(
     'use_blur', True,
     'Whether or not to use Gaussian blur for augmentation during pretraining.')
 
-
 def build_hub_module(model, num_classes, global_step, checkpoint_path):
   """Create TF-Hub module."""
 
@@ -332,6 +334,9 @@ def main(argv):
   if len(argv) > 1:
     raise app.UsageError('Too many command-line arguments.')
 
+  # need to import here because we need the above flags
+  from mobilenetv3.mobilenet_v3 import large_minimalistic, small_minimalistic, mobilenet_func
+
   # Enable training summary.
   if FLAGS.train_summary_steps > 0:
     tf.config.set_soft_device_placement(True)
@@ -347,11 +352,20 @@ def main(argv):
   eval_steps = int(math.ceil(num_eval_examples / FLAGS.eval_batch_size))
   epoch_steps = int(round(num_train_examples / FLAGS.train_batch_size))
 
-  resnet.BATCH_NORM_DECAY = FLAGS.batch_norm_decay
-  model = resnet.resnet_v1(
-      resnet_depth=FLAGS.resnet_depth,
-      width_multiplier=FLAGS.width_multiplier,
-      cifar_stem=FLAGS.image_size <= 32)
+  if FLAGS.backbone == "resnet":
+      resnet.BATCH_NORM_DECAY = FLAGS.batch_norm_decay
+      model = resnet.resnet_v1(
+          resnet_depth=FLAGS.resnet_depth,
+          width_multiplier=FLAGS.width_multiplier,
+          cifar_stem=FLAGS.image_size <= 32)
+  elif FLAGS.backbone == "mobilenet_v3_large_minimalistic":
+      model = mobilenet_func(conv_defs=large_minimalistic,
+                             depth_multiplier=FLAGS.width_multiplier)
+  elif FLAGS.backbone == "mobilenet_v3_small_minimalistic":
+      model = mobilenet_func(conv_defs=small_minimalistic,
+                             depth_multiplier=FLAGS.width_multiplier)
+  else:
+      raise ValueError("wrong backbone:" + FLAGS.backbone)
 
   checkpoint_steps = (
       FLAGS.checkpoint_steps or (FLAGS.checkpoint_epochs * epoch_steps))

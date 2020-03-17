@@ -33,7 +33,7 @@ from tensorflow.python.tpu import tpu_function  # pylint: disable=g-direct-tenso
 FLAGS = flags.FLAGS
 BATCH_NORM_EPSILON = 1e-5
 
-
+# TODO: support sync batch norm with multiple GPUs, longer goal
 class BatchNormalization(tf.layers.BatchNormalization):
   """Batch Normalization layer that supports cross replica computation on TPU.
 
@@ -124,6 +124,7 @@ def batch_norm_relu(inputs, is_training, relu=True, init_zero=False,
         gamma_initializer=gamma_initializer)
     inputs = bn_foo(inputs, training=is_training)
   else:
+    # Done: pass in the batch_norm_decay
     inputs = tf.layers.batch_normalization(
         inputs=inputs,
         axis=axis,
@@ -139,7 +140,7 @@ def batch_norm_relu(inputs, is_training, relu=True, init_zero=False,
     inputs = tf.nn.relu(inputs)
   return inputs
 
-
+# Not used
 def dropblock(net, is_training, keep_prob, dropblock_size,
               data_format='channels_first'):
   """DropBlock: a regularization method for convolutional neural networks.
@@ -434,6 +435,29 @@ def block_group(inputs, filters, block_fn, blocks, strides, is_training, name,
   return tf.identity(inputs, name)
 
 
+def filter_trainable_variables(trainable_variables, after_block):
+    """Add new trainable variables for the immediate precedent block."""
+    if after_block == 0:
+        trainable_variables[after_block] = tf.trainable_variables()
+    else:
+        trainable_variables[after_block] = []
+        for var in tf.trainable_variables():
+            to_keep = True
+            for j in range(after_block):
+                if var in trainable_variables[j]:
+                    to_keep = False
+                    break
+            if to_keep:
+                trainable_variables[after_block].append(var)
+
+
+def add_to_collection(trainable_variables, prefix):
+    """Put variables into graph collection."""
+    for after_block, variables in trainable_variables.items():
+        collection = prefix + str(after_block)
+        for var in variables:
+            tf.add_to_collection(collection, var)
+
 def resnet_v1_generator(block_fn, layers, width_multiplier,
                         cifar_stem=False, data_format='channels_last',
                         dropblock_keep_probs=None, dropblock_size=None):
@@ -489,30 +513,12 @@ def resnet_v1_generator(block_fn, layers, width_multiplier,
           data_format=data_format)
       inputs = tf.identity(inputs, 'initial_max_pool')
 
-    def filter_trainable_variables(trainable_variables, after_block):
-      """Add new trainable variables for the immediate precedent block."""
-      if after_block == 0:
-        trainable_variables[after_block] = tf.trainable_variables()
-      else:
-        trainable_variables[after_block] = []
-        for var in tf.trainable_variables():
-          to_keep = True
-          for j in range(after_block):
-            if var in trainable_variables[j]:
-              to_keep = False
-              break
-          if to_keep:
-            trainable_variables[after_block].append(var)
 
-    def add_to_collection(trainable_variables, prefix):
-      """Put variables into graph collection."""
-      for after_block, variables in trainable_variables.items():
-        collection = prefix + str(after_block)
-        for var in variables:
-          tf.add_to_collection(collection, var)
 
+    # done book keeping of the training variables
     trainable_variables = {}
     filter_trainable_variables(trainable_variables, after_block=0)
+    # done finetuning flags
     if FLAGS.train_mode == 'finetune' and FLAGS.fine_tune_after_block == 0:
       inputs = tf.stop_gradient(inputs)
 
@@ -570,6 +576,7 @@ def resnet_v1_generator(block_fn, layers, width_multiplier,
     inputs = tf.squeeze(inputs, (1, 2))
 
     # filter_trainable_variables(trainable_variables, after_block=5)
+    # done: see whether this collection has any use
     add_to_collection(trainable_variables, 'trainable_variables_inblock_')
 
     return inputs
