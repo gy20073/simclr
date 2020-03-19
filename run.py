@@ -37,6 +37,7 @@ import tensorflow_hub as hub
 
 FLAGS = flags.FLAGS
 
+# decided to go back to resnet backbone because that is easier to converge
 flags.DEFINE_string(
     'backbone', "mobilenet_v3_large_minimalistic",
     'which backbone to use')
@@ -209,8 +210,8 @@ flags.DEFINE_boolean(
     'global_bn', True,
     'Whether to aggregate BN statistics across distributed cores.')
 
-flags.DEFINE_integer(
-    'width_multiplier', 1,
+flags.DEFINE_float(
+    'width_multiplier', 1.0,
     'Multiplier to change width of network.')
 
 flags.DEFINE_integer(
@@ -335,12 +336,11 @@ def main(argv):
     raise app.UsageError('Too many command-line arguments.')
 
   # need to import here because we need the above flags
-  from mobilenetv3.mobilenet_v3 import large_minimalistic, small_minimalistic, mobilenet_func
+  from mobilenetv3.mobilenet_v3 import V3_LARGE_MINIMALISTIC, V3_SMALL_MINIMALISTIC, mobilenet_func
 
   # Enable training summary.
   if FLAGS.train_summary_steps > 0:
     tf.config.set_soft_device_placement(True)
-
 
   builder = tfds.builder(FLAGS.dataset, data_dir=FLAGS.data_dir)
   builder.download_and_prepare()
@@ -359,10 +359,10 @@ def main(argv):
           width_multiplier=FLAGS.width_multiplier,
           cifar_stem=FLAGS.image_size <= 32)
   elif FLAGS.backbone == "mobilenet_v3_large_minimalistic":
-      model = mobilenet_func(conv_defs=large_minimalistic,
+      model = mobilenet_func(conv_defs=V3_LARGE_MINIMALISTIC,
                              depth_multiplier=FLAGS.width_multiplier)
   elif FLAGS.backbone == "mobilenet_v3_small_minimalistic":
-      model = mobilenet_func(conv_defs=small_minimalistic,
+      model = mobilenet_func(conv_defs=V3_SMALL_MINIMALISTIC,
                              depth_multiplier=FLAGS.width_multiplier)
   else:
       raise ValueError("wrong backbone:" + FLAGS.backbone)
@@ -380,6 +380,7 @@ def main(argv):
       tf.config.experimental_connect_to_cluster(cluster)
       tf.tpu.experimental.initialize_tpu_system(cluster)
 
+  config = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
   sliced_eval_mode = tf.estimator.tpu.InputPipelineConfig.SLICED
   run_config = tf.estimator.tpu.RunConfig(
       tpu_config=tf.estimator.tpu.TPUConfig(
@@ -390,7 +391,8 @@ def main(argv):
       save_checkpoints_steps=checkpoint_steps,
       keep_checkpoint_max=FLAGS.keep_checkpoint_max,
       master=FLAGS.master,
-      cluster=cluster)
+      cluster=cluster,
+      session_config=config)
   estimator = tf.estimator.tpu.TPUEstimator(
       model_lib.build_model_fn(model, num_classes, num_train_examples),
       config=run_config,
@@ -414,8 +416,16 @@ def main(argv):
       if result['global_step'] >= train_steps:
         return
   else:
+    profile_hook = tf.estimator.ProfilerHook(
+        save_steps=10000,
+        save_secs=None,
+        output_dir=os.path.join(FLAGS.model_dir, 'logdir'),
+        show_dataflow=True,
+        show_memory=True)
     estimator.train(
-        data_lib.build_input_fn(builder, True), max_steps=train_steps)
+        data_lib.build_input_fn(builder, True),
+        max_steps=train_steps,
+        hooks=[profile_hook])
     if FLAGS.mode == 'train_then_eval':
       perform_evaluation(
           estimator=estimator,

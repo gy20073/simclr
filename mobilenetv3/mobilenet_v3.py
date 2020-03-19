@@ -127,7 +127,7 @@ DEFAULTS = {
     (slim.batch_norm,): {
         'center': True,
         'scale': True,
-        'momentum': FLAGS.batch_norm_decay
+        'decay': FLAGS.batch_norm_decay
     },
 }
 
