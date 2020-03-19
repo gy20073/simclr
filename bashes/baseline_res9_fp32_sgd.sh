@@ -1,14 +1,14 @@
 DATA_DIR="/home/yang/code2/simclr_data/ilsvrc"
-MODEL_DIR="/home/yang/code2/simclr_data/res9"
+MODEL_DIR="/home/yang/code2/simclr_data/res9_sgd"
 
 cd ..
 
-export CUDA_VISIBLE_DEVICES=3
+export CUDA_VISIBLE_DEVICES=2
 
 python run.py \
   --train_mode=pretrain \
   --train_batch_size=256 \
-  --train_epochs=100 \
+  --train_epochs=500 \
   --learning_rate=0.3 \
   --weight_decay=1e-6 \
   --temperature=0.1 \

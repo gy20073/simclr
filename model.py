@@ -183,6 +183,10 @@ def build_model_fn(model, num_classes, num_train_examples):
       if FLAGS.use_tpu:
         optimizer = tf.tpu.CrossShardOptimizer(optimizer)
 
+      if FLAGS.use_fp16:
+        assert FLAGS.optimizer!="lars"
+        optimizer = tf.train.experimental.enable_mixed_precision_graph_rewrite(optimizer)
+
       control_deps = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
       if FLAGS.train_summary_steps > 0:
         control_deps.extend(tf.summary.all_v2_summary_ops())

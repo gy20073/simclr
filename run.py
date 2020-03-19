@@ -37,9 +37,13 @@ import tensorflow_hub as hub
 
 FLAGS = flags.FLAGS
 
+flags.DEFINE_boolean(
+    'use_fp16', False,
+    'Whether to use FP16 to train')
+
 # decided to go back to resnet backbone because that is easier to converge
 flags.DEFINE_string(
-    'backbone', "mobilenet_v3_large_minimalistic",
+    'backbone', "resnet",
     'which backbone to use')
 
 flags.DEFINE_float(
@@ -145,7 +149,7 @@ flags.DEFINE_string(
     'Directory where dataset is stored.')
 
 flags.DEFINE_bool(
-    'use_tpu', True,
+    'use_tpu', False,
     'Whether to run on TPU.')
 
 tf.flags.DEFINE_string(
@@ -207,7 +211,7 @@ flags.DEFINE_integer(
     'Number of non-linear head layers.')
 
 flags.DEFINE_boolean(
-    'global_bn', True,
+    'global_bn', False,
     'Whether to aggregate BN statistics across distributed cores.')
 
 flags.DEFINE_float(
