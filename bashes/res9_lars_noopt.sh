@@ -1,17 +1,17 @@
 # tunable parameters
-id="res50_opt"
-export CUDA_VISIBLE_DEVICES=2
-is_train_phase=false
+id="res9_lars_noopt"
+export CUDA_VISIBLE_DEVICES=1
+is_train_phase=true
 
-batch_size=128
-resnet_depth=50
+batch_size=256
+resnet_depth=9
 # tunable parameters ends
 
 cd ..
 
 DATA_DIR="/home/yang/code2/simclr_data/ilsvrc"
 MODEL_DIR="/home/yang/code2/simclr_data/$id"
-export TF_XLA_FLAGS=--tf_xla_auto_jit=2
+#export TF_XLA_FLAGS=--tf_xla_auto_jit=2
 
 shared_cmd="--dataset=imagenet2012 \
             --image_size=224 \
@@ -21,10 +21,9 @@ shared_cmd="--dataset=imagenet2012 \
             --resnet_depth=$resnet_depth \
             --width_multiplier=1.0 \
             \
-            --optimizer=momentum \
             --train_batch_size=$batch_size\
             --weight_decay=1e-6 \
-            --use_fp16=True \
+            --use_fp16=False \
             --train_summary_steps=600 \
             "
 echo $shared_cmd
@@ -37,6 +36,7 @@ then
     --learning_rate=0.3 \
     --temperature=0.1 \
     --model_dir=$MODEL_DIR \
+    --optimizer=lars \
     $shared_cmd
 else
   python run.py \
@@ -50,5 +50,6 @@ else
     --warmup_epochs=0 \
     --model_dir=$MODEL_DIR"_ft" \
     --checkpoint=$MODEL_DIR \
+    --optimizer=momentum \
     $shared_cmd
 fi

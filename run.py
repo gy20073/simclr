@@ -385,7 +385,10 @@ def main(argv):
       tf.tpu.experimental.initialize_tpu_system(cluster)
 
   config = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
-  sliced_eval_mode = tf.estimator.tpu.InputPipelineConfig.SLICED
+  if FLAGS.use_tpu:
+    sliced_eval_mode = tf.estimator.tpu.InputPipelineConfig.SLICED
+  else:
+    sliced_eval_mode = tf.estimator.tpu.InputPipelineConfig.PER_HOST_V1
   run_config = tf.estimator.tpu.RunConfig(
       tpu_config=tf.estimator.tpu.TPUConfig(
           iterations_per_loop=checkpoint_steps,

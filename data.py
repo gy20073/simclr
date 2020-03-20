@@ -136,7 +136,12 @@ def build_input_fn(builder, is_training):
     if FLAGS.cache_dataset:
       dataset = dataset.cache()
     if is_training:
-      buffer_multiplier = 50 if FLAGS.image_size <= 32 else 10
+      if FLAGS.image_size <= 32:
+          buffer_multiplier = 50
+      elif FLAGS.image_size <= 120:
+          buffer_multiplier = 30
+      else:
+          buffer_multiplier = 10
       dataset = dataset.shuffle(params['batch_size'] * buffer_multiplier)
       dataset = dataset.repeat(-1)
     dataset = dataset.map(map_fn,
