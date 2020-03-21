@@ -133,8 +133,10 @@ def build_input_fn(builder, is_training):
     dataset = builder.as_dataset(
         split=FLAGS.train_split if is_training else FLAGS.eval_split,
         shuffle_files=is_training, as_supervised=True)
-    if FLAGS.cache_dataset:
-      dataset = dataset.cache()
+    if FLAGS.cache_dataset!="":
+      print("enabled caching")
+      dataset = dataset.cache(filename=FLAGS.cache_dataset)
+
     if is_training:
       if FLAGS.image_size <= 32:
           buffer_multiplier = 50
@@ -142,10 +144,11 @@ def build_input_fn(builder, is_training):
           buffer_multiplier = 30
       else:
           buffer_multiplier = 10
+      print("buffer_multiplier is ", buffer_multiplier)
       dataset = dataset.shuffle(params['batch_size'] * buffer_multiplier)
       dataset = dataset.repeat(-1)
     dataset = dataset.map(map_fn,
-                          num_parallel_calls=tf.data.experimental.AUTOTUNE)
+                          num_parallel_calls=40)#tf.data.experimental.AUTOTUNE)
     dataset = dataset.batch(params['batch_size'], drop_remainder=is_training)
     dataset = pad_to_batch(dataset, params['batch_size'])
     images, labels, mask = tf.data.make_one_shot_iterator(dataset).get_next()

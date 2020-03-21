@@ -1,12 +1,10 @@
 # tunable parameters
 id="res9_sgd_opt_112"
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=3
 is_train_phase=true
 
-batch_size=512
+batch_size=384
 resnet_depth=9
-
-image_size=112
 # tunable parameters ends
 
 cd ..
@@ -16,9 +14,10 @@ MODEL_DIR="/home/yang/code2/simclr_data/$id"
 export TF_XLA_FLAGS=--tf_xla_auto_jit=2
 
 shared_cmd="--dataset=imagenet2012 \
-            --image_size=$image_size \
+            --image_size=112 \
             --eval_split=validation \
             --data_dir=$DATA_DIR \
+            --cache_dataset=/home/yang/code2/simclr_data/ilsvrc/imagenet2012/5.0.0_cache \
             \
             --resnet_depth=$resnet_depth \
             --width_multiplier=1.0 \

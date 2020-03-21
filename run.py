@@ -103,8 +103,8 @@ flags.DEFINE_string(
     'dataset', 'imagenet2012',
     'Name of a dataset.')
 
-flags.DEFINE_bool(
-    'cache_dataset', False,
+flags.DEFINE_string(
+    'cache_dataset', "",
     'Whether to cache the entire dataset in memory. If the dataset is '
     'ImageNet, this is a very bad idea, but for smaller datasets it can '
     'improve performance.')
@@ -427,7 +427,7 @@ def main(argv):
     profile_hook = tf.estimator.ProfilerHook(
         save_steps=10000,
         save_secs=None,
-        output_dir=os.path.join(FLAGS.model_dir, 'logdir'),
+        output_dir=FLAGS.model_dir,
         show_dataflow=True,
         show_memory=True)
     estimator.train(
