@@ -461,7 +461,7 @@ def add_to_collection(trainable_variables, prefix):
 
 def resnet_v1_generator(block_fn, layers, width_multiplier,
                         cifar_stem=False, data_format='channels_last',
-                        dropblock_keep_probs=None, dropblock_size=None):
+                        dropblock_keep_probs=None, dropblock_size=None, conv1_stride1=False):
   """Generator for ResNet v1 models.
 
   Args:
@@ -503,9 +503,15 @@ def resnet_v1_generator(block_fn, layers, width_multiplier,
       inputs = batch_norm_relu(inputs, is_training, data_format=data_format)
       inputs = tf.identity(inputs, 'initial_max_pool')
     else:
-      inputs = conv2d_fixed_padding(
-          inputs=inputs, filters=int(64 * width_multiplier), kernel_size=7,
-          strides=2, data_format=data_format)
+      if conv1_stride1:
+          print("activated conv1 stride1")
+          inputs = conv2d_fixed_padding(
+              inputs=inputs, filters=int(64 * width_multiplier), kernel_size=5,
+              strides=1, data_format=data_format)
+      else:
+          inputs = conv2d_fixed_padding(
+              inputs=inputs, filters=int(64 * width_multiplier), kernel_size=7,
+              strides=2, data_format=data_format)
       inputs = tf.identity(inputs, 'initial_conv')
       inputs = batch_norm_relu(inputs, is_training, data_format=data_format)
 
@@ -587,7 +593,7 @@ def resnet_v1_generator(block_fn, layers, width_multiplier,
 
 def resnet_v1(resnet_depth, width_multiplier,
               cifar_stem=False, data_format='channels_last',
-              dropblock_keep_probs=None, dropblock_size=None):
+              dropblock_keep_probs=None, dropblock_size=None, conv1_stride1=False):
   """Returns the ResNet model for a given size and number of output classes."""
   model_params = {
       9: {'block': residual_block, 'layers': [1, 1, 1, 1]},
@@ -608,4 +614,5 @@ def resnet_v1(resnet_depth, width_multiplier,
       cifar_stem=cifar_stem,
       dropblock_keep_probs=dropblock_keep_probs,
       dropblock_size=dropblock_size,
-      data_format=data_format)
+      data_format=data_format,
+      conv1_stride1=conv1_stride1)

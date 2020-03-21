@@ -361,7 +361,8 @@ def main(argv):
       model = resnet.resnet_v1(
           resnet_depth=FLAGS.resnet_depth,
           width_multiplier=FLAGS.width_multiplier,
-          cifar_stem=FLAGS.image_size <= 32)
+          cifar_stem=FLAGS.image_size <= 32,
+          conv1_stride1=(FLAGS.image_size==112))
   elif FLAGS.backbone == "mobilenet_v3_large_minimalistic":
       model = mobilenet_func(conv_defs=V3_LARGE_MINIMALISTIC,
                              depth_multiplier=FLAGS.width_multiplier)
