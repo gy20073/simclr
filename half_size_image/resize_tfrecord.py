@@ -3,7 +3,12 @@ import sys, math, os, glob
 import cv2
 import numpy as np
 
+# some constants begin
+resize_ratio = 224.0 / 84.0
+input_path = "/shared/yang/imagenet_original_tfdataset/5.0.0_original/*tfrecord*"
+output_prefix = "/home/yang/code2/simclr_data/ilsvrc/imagenet2012/7.0.0/"
 
+# some constants end
 
 tf.enable_eager_execution()
 
@@ -28,7 +33,7 @@ def _int64_feature(value):
 def half_size(image):
     image = np.frombuffer(image, np.uint8)
     image = cv2.imdecode(image, flags=cv2.IMREAD_UNCHANGED)
-    image = cv2.resize(image, (image.shape[1] // 2, image.shape[0] // 2))
+    image = cv2.resize(image, ( int(image.shape[1]/resize_ratio), int(image.shape[0]/resize_ratio) ))
     image = cv2.imencode('.jpeg', image)[1]
     return image.tobytes()
 
@@ -67,24 +72,25 @@ def convert_one_tfrecord(record_in, record_out):
             tf_example = image_example(image_features['file_name'], image_raw, image_features['label'])
             writer.write(tf_example.SerializeToString())
 
-def get_out_name(name_in):
+def get_out_name(name_in, output_prefix):
     path, name = os.path.split(name_in)
-    ppath, folder = os.path.split(path)
-    path = os.path.join(ppath, "6.0.0")
-    return os.path.join(path, name)
+    return os.path.join(output_prefix, name)
 
 if __name__ == '__main__':
     nproc = int(sys.argv[1])
     pid = int(sys.argv[2])
     print(nproc, pid)
 
-    input_names = sorted(glob.glob("/home/yang/code2/simclr_data/ilsvrc/imagenet2012/5.0.0/*tfrecord*"))
+    input_names = sorted(glob.glob(input_path))
     each_len = int(math.ceil(len(input_names) * 1.0 / nproc))
 
     print(range(each_len * pid, min(each_len * (pid + 1), len(input_names))))
 
+    if not os.path.exists(output_prefix):
+        os.makedirs(output_prefix)
+
     for i in range(each_len * pid, min(each_len * (pid + 1), len(input_names))):
         iname = input_names[i]
-        oname = get_out_name(iname)
+        oname = get_out_name(iname, output_prefix)
         convert_one_tfrecord(iname, oname)
         print("done ", i)

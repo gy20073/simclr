@@ -140,17 +140,16 @@ def build_input_fn(builder, is_training):
     if is_training:
       if FLAGS.image_size <= 32:
           buffer_multiplier = 50
-      elif FLAGS.image_size <= 120:
-          buffer_multiplier = 30
       else:
           buffer_multiplier = 10
       print("buffer_multiplier is ", buffer_multiplier)
       dataset = dataset.shuffle(params['batch_size'] * buffer_multiplier)
       dataset = dataset.repeat(-1)
     dataset = dataset.map(map_fn,
-                          num_parallel_calls=40)#tf.data.experimental.AUTOTUNE)
+                          num_parallel_calls=20)#tf.data.experimental.AUTOTUNE)
     dataset = dataset.batch(params['batch_size'], drop_remainder=is_training)
     dataset = pad_to_batch(dataset, params['batch_size'])
+    dataset = dataset.prefetch(3)
     images, labels, mask = tf.data.make_one_shot_iterator(dataset).get_next()
 
     return images, {'labels': labels, 'mask': mask}

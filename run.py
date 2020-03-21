@@ -362,7 +362,7 @@ def main(argv):
           resnet_depth=FLAGS.resnet_depth,
           width_multiplier=FLAGS.width_multiplier,
           cifar_stem=FLAGS.image_size <= 32,
-          conv1_stride1=(FLAGS.image_size==112))
+          conv1_stride1=(FLAGS.image_size==112) or (FLAGS.image_size==84))
   elif FLAGS.backbone == "mobilenet_v3_large_minimalistic":
       model = mobilenet_func(conv_defs=V3_LARGE_MINIMALISTIC,
                              depth_multiplier=FLAGS.width_multiplier)
@@ -441,6 +441,8 @@ def main(argv):
           eval_steps=eval_steps,
           model=model,
           num_classes=num_classes)
+    if FLAGS.mode == "eval_with_libsvm":
+        pass
 
 
 if __name__ == '__main__':
