@@ -37,14 +37,19 @@ def build_model_fn(model, num_classes, num_train_examples):
   def model_fn(features, labels, mode, params=None):
     """Build model and optimizer."""
     is_training = mode == tf.estimator.ModeKeys.TRAIN
+    is_predicting = mode == tf.estimator.ModeKeys.PREDICT
+
+    if is_predicting:
+        hid_labels = features['labels']
+        features = features['images']
 
     # Check training mode.
-    if FLAGS.train_mode == 'pretrain':
+    if FLAGS.train_mode == 'pretrain' and not is_predicting:
       num_transforms = 2
       if FLAGS.fine_tune_after_block > -1:
         raise ValueError('Does not support layer freezing during pretraining,'
                          'should set fine_tune_after_block<=-1 for safety.')
-    elif FLAGS.train_mode == 'finetune':
+    elif FLAGS.train_mode == 'finetune' or is_predicting:
       num_transforms = 1
     else:
       raise ValueError('Unknown train_mode {}'.format(FLAGS.train_mode))
@@ -59,13 +64,19 @@ def build_model_fn(model, num_classes, num_train_examples):
 
     # Base network forward pass.
     with tf.variable_scope('base_model'):
-      if FLAGS.train_mode == 'finetune' and FLAGS.fine_tune_after_block >= 4:
+      if (FLAGS.train_mode == 'finetune' and FLAGS.fine_tune_after_block >= 4) or is_predicting:
         # Finetune just supervised (linear) head will not update BN stats.
         model_train_mode = False
       else:
         # Pretrain or finetuen anything else will update BN stats.
         model_train_mode = is_training
       hiddens = model(features, is_training=model_train_mode)
+
+    if is_predicting:
+        return tf.estimator.tpu.TPUEstimatorSpec(
+            mode=mode,
+            scaffold_fn=None,
+            predictions={'hiddens': hiddens, 'labels': hid_labels})
 
     # Add head and loss.
     if FLAGS.train_mode == 'pretrain':
@@ -196,31 +207,7 @@ def build_model_fn(model, num_classes, num_train_examples):
             var_list=variables_to_train)
 
       if FLAGS.checkpoint:
-        def scaffold_fn():
-          """Scaffold function to restore non-logits vars from checkpoint."""
-          print("restoring those variables from checkpoint")
-          for v in tf.global_variables(FLAGS.variable_schema):
-              print(v)
-
-          tf.train.init_from_checkpoint(
-              FLAGS.checkpoint,
-              {v.op.name: v.op.name
-               for v in tf.global_variables(FLAGS.variable_schema)})
-
-          if FLAGS.zero_init_logits_layer:
-            # Init op that initializes output layer parameters to zeros.
-            output_layer_parameters = [
-                var for var in tf.trainable_variables() if var.name.startswith(
-                    'head_supervised')]
-            tf.logging.info('Initializing output layer parameters %s to zero',
-                            [x.op.name for x in output_layer_parameters])
-            with tf.control_dependencies([tf.global_variables_initializer()]):
-              init_op = tf.group([
-                  tf.assign(x, tf.zeros_like(x))
-                  for x in output_layer_parameters])
-            return tf.train.Scaffold(init_op=init_op)
-          else:
-            return tf.train.Scaffold()
+        scaffold_fn = scaffold_fn_checkpoint
       else:
         scaffold_fn = None
 
@@ -253,7 +240,7 @@ def build_model_fn(model, num_classes, num_train_examples):
           'mask': labels['mask'],
           'contrast_loss': tf.fill((params['batch_size'],), contrast_loss),
           'regularization_loss': tf.fill((params['batch_size'],),
-                                         tf.losses.get_regularization_loss()),
+                                         tf.losses.get_regularization_loss())
       }
 
       return tf.estimator.tpu.TPUEstimatorSpec(
@@ -263,3 +250,30 @@ def build_model_fn(model, num_classes, num_train_examples):
           scaffold_fn=None)
 
   return model_fn
+
+
+def scaffold_fn_checkpoint():
+    """Scaffold function to restore non-logits vars from checkpoint."""
+    print("restoring those variables from checkpoint")
+    for v in tf.global_variables(FLAGS.variable_schema):
+        print(v)
+
+    tf.train.init_from_checkpoint(
+        FLAGS.checkpoint,
+        {v.op.name: v.op.name
+         for v in tf.global_variables(FLAGS.variable_schema)})
+
+    if FLAGS.zero_init_logits_layer:
+        # Init op that initializes output layer parameters to zeros.
+        output_layer_parameters = [
+            var for var in tf.trainable_variables() if var.name.startswith(
+                'head_supervised')]
+        tf.logging.info('Initializing output layer parameters %s to zero',
+                        [x.op.name for x in output_layer_parameters])
+        with tf.control_dependencies([tf.global_variables_initializer()]):
+            init_op = tf.group([
+                tf.assign(x, tf.zeros_like(x))
+                for x in output_layer_parameters])
+        return tf.train.Scaffold(init_op=init_op)
+    else:
+        return tf.train.Scaffold()

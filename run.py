@@ -24,22 +24,35 @@ import math
 import os
 from absl import app
 from absl import flags
+import numpy as np
+import pickle
 
 import resnet
 import data as data_lib
 import model as model_lib
 import model_util as model_util
+import linear_eval
 
 import tensorflow.compat.v1 as tf
 import tensorflow_datasets as tfds
 import tensorflow_hub as hub
 
+# TODO verify the fp16 computation
+os.environ['TF_ENABLE_AUTO_MIXED_PRECISION'] = '1'
 
 FLAGS = flags.FLAGS
 
 flags.DEFINE_boolean(
     'use_fp16', False,
     'Whether to use FP16 to train')
+
+flags.DEFINE_integer(
+    'predict_batch_size', 128,
+    'Batch size for training.')
+
+flags.DEFINE_boolean(
+    'linear_eval', False,
+    'Whether to periodically call linear_eval')
 
 # decided to go back to resnet backbone because that is easier to converge
 flags.DEFINE_string(
@@ -390,6 +403,7 @@ def main(argv):
     sliced_eval_mode = tf.estimator.tpu.InputPipelineConfig.SLICED
   else:
     sliced_eval_mode = tf.estimator.tpu.InputPipelineConfig.PER_HOST_V1
+
   run_config = tf.estimator.tpu.RunConfig(
       tpu_config=tf.estimator.tpu.TPUConfig(
           iterations_per_loop=checkpoint_steps,
@@ -406,7 +420,10 @@ def main(argv):
       config=run_config,
       train_batch_size=FLAGS.train_batch_size,
       eval_batch_size=FLAGS.eval_batch_size,
-      use_tpu=FLAGS.use_tpu)
+      predict_batch_size=FLAGS.predict_batch_size,
+      use_tpu=FLAGS.use_tpu,
+      model_dir=FLAGS.model_dir)
+
 
   if FLAGS.mode == 'eval':
     for ckpt in tf.train.checkpoints_iterator(
@@ -423,9 +440,34 @@ def main(argv):
         continue
       if result['global_step'] >= train_steps:
         return
+  elif FLAGS.linear_eval:
+      output={}
+
+      for set in ['eval', 'train']:
+          print("doing ", set, " set")
+          hidden_v = estimator.predict(
+              linear_eval.build_input_fn_foreval(builder=builder,
+                                                 is_training=(set=="train")),
+              predict_keys=['hiddens', 'labels'], checkpoint_path=None,
+              yield_single_examples=False)
+          features = []
+          labels = []
+          for i in hidden_v:
+              features.append(i['hiddens']) # shape batch*ndim
+              labels.append(i['labels'])    # shape batch*nclass
+          features=np.concatenate(features, axis=0) # total num * ndim
+          labels = np.concatenate(labels, axis=0)  # total num * ndim
+
+          output[set]=(features, labels)
+
+      with open(os.path.join(FLAGS.model_dir, "linear.pkl"), 'wb') as f:
+          pickle.dump(output, f)
+
+      # need regularization to train
+
   else:
     profile_hook = tf.estimator.ProfilerHook(
-        save_steps=10000,
+        save_steps=100000000,
         save_secs=None,
         output_dir=FLAGS.model_dir,
         show_dataflow=True,
@@ -441,8 +483,8 @@ def main(argv):
           eval_steps=eval_steps,
           model=model,
           num_classes=num_classes)
-    if FLAGS.mode == "eval_with_libsvm":
-        pass
+
+
 
 
 if __name__ == '__main__':

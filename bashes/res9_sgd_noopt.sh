@@ -1,12 +1,10 @@
 # tunable parameters
-id="res9_sgd_noopt_112"
-export CUDA_VISIBLE_DEVICES=1
+id="res9_sgd_noopt_84_100"
+export CUDA_VISIBLE_DEVICES=2
 is_train_phase=true
 
-batch_size=256
+batch_size=512
 resnet_depth=9
-
-image_size=112
 # tunable parameters ends
 
 cd ..
@@ -16,7 +14,7 @@ MODEL_DIR="/home/yang/code2/simclr_data/$id"
 #export TF_XLA_FLAGS=--tf_xla_auto_jit=2
 
 shared_cmd="--dataset=imagenet2012 \
-            --image_size=$image_size \
+            --image_size=84 \
             --eval_split=validation \
             --data_dir=$DATA_DIR \
             \
@@ -35,7 +33,7 @@ if $is_train_phase
 then
   python run.py \
     --train_mode=pretrain \
-    --train_epochs=500 \
+    --train_epochs=100 \
     --learning_rate=0.3 \
     --temperature=0.1 \
     --model_dir=$MODEL_DIR \

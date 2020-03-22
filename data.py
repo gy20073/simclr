@@ -146,7 +146,7 @@ def build_input_fn(builder, is_training):
       dataset = dataset.shuffle(params['batch_size'] * buffer_multiplier)
       dataset = dataset.repeat(-1)
     dataset = dataset.map(map_fn,
-                          num_parallel_calls=20)#tf.data.experimental.AUTOTUNE)
+                          num_parallel_calls=256)#tf.data.experimental.AUTOTUNE)
     dataset = dataset.batch(params['batch_size'], drop_remainder=is_training)
     dataset = pad_to_batch(dataset, params['batch_size'])
     dataset = dataset.prefetch(3)

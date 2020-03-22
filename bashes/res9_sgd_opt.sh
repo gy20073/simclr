@@ -1,5 +1,5 @@
 # tunable parameters
-id="res9_sgd_opt_84"
+id="res9_sgd_opt_84_100"
 export CUDA_VISIBLE_DEVICES=3
 is_train_phase=true
 
@@ -34,7 +34,7 @@ if $is_train_phase
 then
   python run.py \
     --train_mode=pretrain \
-    --train_epochs=500 \
+    --train_epochs=100 \
     --learning_rate=0.3 \
     --temperature=0.1 \
     --model_dir=$MODEL_DIR \
