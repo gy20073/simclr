@@ -37,9 +37,6 @@ import tensorflow.compat.v1 as tf
 import tensorflow_datasets as tfds
 import tensorflow_hub as hub
 
-# TODO verify the fp16 computation
-os.environ['TF_ENABLE_AUTO_MIXED_PRECISION'] = '1'
-
 FLAGS = flags.FLAGS
 
 flags.DEFINE_boolean(
@@ -399,6 +396,11 @@ def main(argv):
       tf.tpu.experimental.initialize_tpu_system(cluster)
 
   config = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
+
+  if FLAGS.use_fp16:
+      # This works, but no loss rescaling
+      config.graph_options.rewrite_options.auto_mixed_precision = 1
+
   if FLAGS.use_tpu:
     sliced_eval_mode = tf.estimator.tpu.InputPipelineConfig.SLICED
   else:
