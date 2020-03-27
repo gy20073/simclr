@@ -48,9 +48,9 @@ else
     --zero_init_logits_layer=True \
     --variable_schema='(?!(global_step|current_loss_scale|good_steps)|(?:.*/|^)Momentum|head)' \
     --learning_rate=0.1 \
-    --train_epochs=90 \
+    --train_epochs=300 \
     --warmup_epochs=0 \
-    --model_dir=$MODEL_DIR"_ft" \
+    --model_dir=$MODEL_DIR"_ft_more" \
     --checkpoint=$MODEL_DIR \
     $shared_cmd
 fi

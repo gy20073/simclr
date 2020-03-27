@@ -1,7 +1,7 @@
 # tunable parameters
 id="res9_lars_noopt_84_100"
 export CUDA_VISIBLE_DEVICES=4
-is_train_phase=true
+is_train_phase=false
 
 batch_size=512
 resnet_depth=9
@@ -44,7 +44,7 @@ else
     --train_mode=finetune \
     --fine_tune_after_block=4 \
     --zero_init_logits_layer=True \
-    --variable_schema='(?!(global_step|current_loss_scale|good_steps)|(?:.*/|^)Momentum|head)' \
+    --variable_schema='(?!(global_step|current_loss_scale|good_steps)|(?:.*/|^)LARSOptimizer|head)' \
     --learning_rate=0.1 \
     --train_epochs=90 \
     --warmup_epochs=0 \

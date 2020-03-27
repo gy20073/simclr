@@ -46,7 +46,6 @@ def get_train_steps(num_examples):
   return FLAGS.train_steps or (
       num_examples * FLAGS.train_epochs // FLAGS.train_batch_size + 1)
 
-
 def learning_rate_schedule(base_learning_rate, num_examples):
   """Build learning rate schedule."""
   global_step = tf.train.get_or_create_global_step()
